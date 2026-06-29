@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mona's 3D Prints</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='theme.js') }}" defer></script>
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-inner">
+            <div>
+                <p class="kicker">Custom Craft Studio</p>
+                <h1 class="brand">Mona's 3D Prints</h1>
+            </div>
+            <nav class="nav-actions">
+                <button type="button" class="btn btn-light theme-toggle" data-theme-toggle>Dark Mode</button>
+                {% if session.get('logged_in') %}
+                    <a href="/admin" class="btn btn-primary">Admin Dashboard</a>
+                    <a href="/logout" class="btn btn-danger">Logout</a>
+                {% else %}
+                    <a href="/login" class="btn btn-outline">Editor Mode</a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="hero-content">
+            <h2>Purpose-built designs with reliable quality and clean finish</h2>
+            <p>Shop functional and decorative 3D prints crafted for everyday use, thoughtful gifting, and creative spaces.</p>
+        </div>
+    </section>
+
+    <section class="filter-wrap">
+        <form method="GET" action="/" class="filter-bar reveal">
+            <div class="filter-field filter-search">
+                <label for="q">Search products</label>
+                <input id="q" type="text" name="q" value="{{ q }}" placeholder="Try: toy, frame, desk...">
+            </div>
+
+            <div class="filter-field">
+                <label for="category">Category</label>
+                <select id="category" name="category">
+                    <option value="all" {% if selected_category == 'all' %}selected{% endif %}>All</option>
+                    {% for c in categories %}
+                        <option value="{{ c }}" {% if selected_category == c %}selected{% endif %}>{{ c|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-field">
+                <label for="sort">Sort by</label>
+                <select id="sort" name="sort">
+                    <option value="new" {% if sort == 'new' %}selected{% endif %}>New</option>
+                    <option value="popular" {% if sort == 'popular' %}selected{% endif %}>Popular</option>
+                    <option value="price_low" {% if sort == 'price_low' %}selected{% endif %}>Price: Low to High</option>
+                    <option value="price_high" {% if sort == 'price_high' %}selected{% endif %}>Price: High to Low</option>
+                </select>
+            </div>
+
+            <div class="filter-actions">
+                <button type="submit" class="btn btn-primary">Apply</button>
+                <a href="/" class="btn btn-light">Reset</a>
+            </div>
+        </form>
+    </section>
+
+    <div class="store-layout">
+        <aside class="sidebar">
+            <div class="sidebar-card">
+                <h3>About This Shop</h3>
+                <p>{{ profile.shop_summary }}</p>
+                <ul class="feature-list">
+                    <li>Kids toys and desk companions</li>
+                    <li>Display and frame accents</li>
+                    <li>Useful everyday trinkets</li>
+                </ul>
+                <div class="contact-box">
+                    <p><strong>Email:</strong> {{ profile.contact_email }}</p>
+                    <p><strong>Location:</strong> {{ profile.location }}</p>
+                    {% if profile.contact_details %}
+                        <p><strong>Details:</strong> {{ profile.contact_details }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="grid-container">
+                {% for item in items %}
+                    <article class="item-card reveal">
+                        <a href="/item/{{ item.id }}" class="item-image-link">
+                            {% if item.image_urls %}
+                                <img src="{{ item.image_urls.split(',')[0].strip() }}" class="item-image" alt="{{ item.name }}">
+                            {% else %}
+                                <div class="item-image item-image-fallback">Image coming soon</div>
+                            {% endif %}
+                        </a>
+
+                        <div class="item-body">
+                            <a href="/item/{{ item.id }}" class="item-title-link">
+                                <h3>{{ item.name }}</h3>
+                            </a>
+
+                            {% if item.discount_price %}
+                                <p class="price-row"><span class="discount">${{ "%.2f"|format(item.discount_price) }}</span><span class="original-price">${{ "%.2f"|format(item.price) }}</span></p>
+                            {% else %}
+                                <p class="price">${{ "%.2f"|format(item.price) }}</p>
+                            {% endif %}
+
+                            <p class="item-summary">{{ item.summary }}</p>
+                        </div>
+                    </article>
+                {% else %}
+                    <p class="empty-state">No prints listed yet. Add your first product from the admin dashboard.</p>
+                {% endfor %}
+            </div>
+        </main>
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit {{ item.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='theme.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='admin-upload.js') }}" defer></script>
+</head>
+<body>
+    <button type="button" class="btn btn-light theme-toggle theme-toggle-floating" data-theme-toggle>Dark Mode</button>
+    <section class="admin-container reveal">
+        <a href="/admin" class="back-link admin-back-link">Back to Admin</a>
+        <h2>Edit Product</h2>
+
+        <form method="POST" action="/admin/edit/{{ item.id }}" class="admin-form" enctype="multipart/form-data">
+            <label>Product Name:</label>
+            <input type="text" name="name" required value="{{ item.name }}">
+
+            <label>Images (Drag and drop or choose files):</label>
+            <div class="dropzone" data-dropzone>
+                <input type="file" name="images" class="dropzone-input" data-dropzone-input accept="image/png,image/jpeg,image/jpg,image/gif,image/webp" multiple>
+                <p class="dropzone-title">Drop photos here</p>
+                <p class="dropzone-subtitle">or click to browse from your computer</p>
+                <p class="dropzone-files" data-dropzone-files>No new files selected</p>
+                <div class="dropzone-preview" data-dropzone-preview></div>
+            </div>
+
+            <label>Image URLs (Optional, append external links):</label>
+            <input type="text" name="image_urls" value="{{ item.image_urls }}">
+
+            <div class="existing-images">
+                <p class="existing-images-label">Existing images</p>
+                <div class="existing-images-grid">
+                    {% for image in existing_images %}
+                        <label class="existing-image-chip">
+                            <input type="checkbox" name="existing_images" value="{{ image }}" checked>
+                            <img src="{{ image }}" alt="Existing image for {{ item.name }}">
+                            <span>Keep</span>
+                        </label>
+                    {% else %}
+                        <p class="admin-note">No existing images saved yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <label>Etsy Link (Optional):</label>
+            <input type="url" name="etsy_url" value="{{ item.etsy_url or '' }}">
+
+            <label>Standard Price ($):</label>
+            <input type="number" step="0.01" name="price" required value="{{ item.price }}">
+
+            <label>Discount Price ($) (Leave blank if no discount):</label>
+            <input type="number" step="0.01" name="discount_price" value="{{ item.discount_price or '' }}">
+
+            <label>Category:</label>
+            <input type="text" name="category" required value="{{ item.category }}">
+
+            <label>Popularity Score (0-100):</label>
+            <input type="number" name="popularity_score" min="0" max="100" value="{{ item.popularity_score }}">
+
+            <label>Summary/Description:</label>
+            <textarea name="summary" rows="5" required>{{ item.summary }}</textarea>
+
+            <div class="admin-actions">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <a href="/admin" class="btn btn-light">Cancel</a>
+            </div>
+        </form>
+    </section>
+</body>
+</html>

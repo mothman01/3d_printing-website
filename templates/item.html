@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ item.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='theme.js') }}" defer></script>
+</head>
+<body>
+    <header class="inner-topbar">
+        <a href="/" class="back-link">Back to Shop</a>
+        <button type="button" class="btn btn-light theme-toggle" data-theme-toggle>Dark Mode</button>
+    </header>
+
+    <div class="item-container">
+        <div class="slideshow-container">
+            {% if images %}
+                {% for img in images %}
+                <img class="mySlides" src="{{ img }}" alt="{{ item.name }}">
+                {% endfor %}
+                <a class="prev" onclick="plusSlides(-1)">❮</a>
+                <a class="next" onclick="plusSlides(1)">❯</a>
+            {% else %}
+                <p style="text-align: center; padding: 50px;">No images available.</p>
+            {% endif %}
+        </div>
+
+        <div class="details-item">
+            <h1>{{ item.name }}</h1>
+            
+            <h2 class="detail-price">
+                {% if item.discount_price %}
+                    <span class="original-price">${{ "%.2f"|format(item.price) }}</span>
+                    <span class="discount">${{ "%.2f"|format(item.discount_price) }}</span>
+                {% else %}
+                    ${{ "%.2f"|format(item.price) }}
+                {% endif %}
+            </h2>
+            
+            <p class="summary">{{ item.summary }}</p>
+            
+            {% if item.etsy_url %}
+                <a href="{{ item.etsy_url }}" target="_blank" class="etsy-btn">View on Etsy</a>
+            {% endif %}
+
+            {% if session.get('logged_in') %}
+                <hr class="section-divider">
+                <form action="/delete/{{ item.id }}" method="POST" onsubmit="return confirm('Are you sure you want to permanently delete this print?');">
+                    <button type="submit" class="btn btn-danger btn-block">Delete This Item</button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        let slideIndex = 1;
+        showSlides(slideIndex);
+
+        function plusSlides(n) {
+            showSlides(slideIndex += n);
+        }
+
+        function showSlides(n) {
+            let i;
+            let slides = document.getElementsByClassName("mySlides");
+            if (slides.length === 0) return; 
+            
+            if (n > slides.length) {slideIndex = 1}    
+            if (n < 1) {slideIndex = slides.length}
+            
+            for (i = 0; i < slides.length; i++) {
+                slides[i].style.display = "none";  
+            }
+            slides[slideIndex-1].style.display = "block";  
+        }
+    </script>
+</body>
+</html>

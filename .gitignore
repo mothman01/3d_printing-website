@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Test and coverage artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local runtime files
+instance/*.db
+instance/*.sqlite
+instance/*.sqlite3
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# OS/editor artifacts
+.DS_Store
+.vscode/

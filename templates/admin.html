@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add a 3D Print</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='theme.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='admin-upload.js') }}" defer></script>
+</head>
+<body>
+    <button type="button" class="btn btn-light theme-toggle theme-toggle-floating" data-theme-toggle>Dark Mode</button>
+    <div class="admin-shell">
+        <section class="admin-container reveal">
+            <a href="/" class="back-link admin-back-link">Back to Store</a>
+            <h2>Shop Profile</h2>
+            <p class="admin-note">Update your shop summary, email, and contact details shown on the storefront.</p>
+
+            <form method="POST" action="/admin" class="admin-form">
+                <input type="hidden" name="form_type" value="update_profile">
+
+                <label>Shop Summary:</label>
+                <textarea name="shop_summary" rows="4" required>{{ profile.shop_summary }}</textarea>
+
+                <label>Contact Email:</label>
+                <input type="email" name="contact_email" required value="{{ profile.contact_email }}">
+
+                <label>Location:</label>
+                <input type="text" name="location" required value="{{ profile.location }}">
+
+                <label>Additional Contact Details:</label>
+                <textarea name="contact_details" rows="3" placeholder="Phone, business hours, Instagram, etc.">{{ profile.contact_details }}</textarea>
+
+                <div class="admin-actions">
+                    <button type="submit" class="btn btn-primary">Save Profile</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="admin-container reveal">
+            <h2>Add a New 3D Print</h2>
+            
+            <form method="POST" action="/admin" class="admin-form" enctype="multipart/form-data">
+                <input type="hidden" name="form_type" value="add_item">
+
+            <label>Product Name:</label>
+            <input type="text" name="name" required placeholder="e.g. Flexi Rex">
+
+            <label>Images (Drag and drop or choose files):</label>
+            <div class="dropzone" data-dropzone>
+                <input type="file" name="images" class="dropzone-input" data-dropzone-input accept="image/png,image/jpeg,image/jpg,image/gif,image/webp" multiple>
+                <p class="dropzone-title">Drop photos here</p>
+                <p class="dropzone-subtitle">or click to browse from your computer</p>
+                <p class="dropzone-files" data-dropzone-files>No files selected</p>
+                <div class="dropzone-preview" data-dropzone-preview></div>
+            </div>
+
+            <label>Image URLs (Optional, separate links with commas):</label>
+            <input type="text" name="image_urls" placeholder="https://link1.jpg, https://link2.jpg">
+            
+            <label>Etsy Link (Optional):</label>
+            <input type="url" name="etsy_url" placeholder="https://www.etsy.com/listing/...">
+
+            <label>Standard Price ($):</label>
+            <input type="number" step="0.01" name="price" required placeholder="15.00">
+
+            <label>Discount Price ($) (Leave blank if no discount):</label>
+            <input type="number" step="0.01" name="discount_price" placeholder="10.00">
+
+            <label>Category:</label>
+            <input type="text" name="category" required placeholder="e.g. toys, decor, desk">
+
+            <label>Popularity Score (0-100):</label>
+            <input type="number" name="popularity_score" min="0" max="100" value="0">
+
+            <label>Summary/Description:</label>
+            <textarea name="summary" rows="4" required placeholder="Describe the print, colors available, etc."></textarea>
+
+            <div class="admin-actions">
+                <button type="submit" class="btn btn-primary">Add Product</button>
+                <a href="/logout" class="text-link danger-link">Logout</a>
+            </div>
+        </form>
+        </section>
+
+        <section class="admin-container reveal">
+            <h2>Manage Products</h2>
+            <p class="admin-note">Edit any listing to update summary, pricing, category, and popularity.</p>
+            <div class="manage-list">
+                {% for item in items %}
+                    <article class="manage-item">
+                        <div>
+                            <h3>{{ item.name }}</h3>
+                            <p>Category: {{ item.category|title }} | Popularity: {{ item.popularity_score }}</p>
+                        </div>
+                        <a class="btn btn-light" href="/admin/edit/{{ item.id }}">Edit</a>
+                    </article>
+                {% else %}
+                    <p class="admin-note">No products yet.</p>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+
+</body>
+</html>
