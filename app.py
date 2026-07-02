@@ -3,24 +3,16 @@ import os
 import uuid
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
+import cloudinary
+import cloudinary.uploader
 from flask import Flask, render_template, request, redirect, url_for, session, has_request_context
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, inspect, or_, text
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-try:
-    from PIL import Image, ImageOps, UnidentifiedImageError
-except ImportError:
-    Image = None
-    ImageOps = None
-
-    class UnidentifiedImageError(Exception):
-        pass
-
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-
 
 def normalize_database_url(raw_url):
     if not raw_url:
@@ -38,15 +30,19 @@ def normalize_database_url(raw_url):
 
     return raw_url
 
-
 app.config['SQLALCHEMY_DATABASE_URI'] = normalize_database_url(os.getenv('DATABASE_URL', 'sqlite:///items.db'))
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['UPLOAD_FOLDER'] = os.path.join(app.static_folder, 'uploads')
 app.secret_key = os.getenv('SECRET_KEY', 'dev-only-secret-change-in-production')
 db = SQLAlchemy(app)
 
-ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'al1xal1x')
+# --- CLOUDINARY CONFIGURATION ---
+cloudinary.config(
+    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.getenv('CLOUDINARY_API_KEY'),
+    api_secret=os.getenv('CLOUDINARY_API_SECRET')
+)
 
+ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'al1xal1x')
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_IMAGE_DIMENSION = 1600
 
@@ -65,7 +61,6 @@ class Item(db.Model):
     def __repr__(self):
         return f'<Item {self.name}>'
 
-
 class ShopProfile(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     shop_summary = db.Column(db.Text, nullable=False, default='Designs are produced in small batches with close quality checks, clean detailing, and practical durability in mind.')
@@ -73,13 +68,11 @@ class ShopProfile(db.Model):
     location = db.Column(db.String(255), nullable=False, default='Orlando, FL')
     contact_details = db.Column(db.Text, nullable=True, default='')
 
-
 def parse_float(value, fallback=0.0):
     try:
         return float(value)
     except (TypeError, ValueError):
         return fallback
-
 
 def parse_optional_float(value):
     if value is None:
@@ -89,13 +82,11 @@ def parse_optional_float(value):
         return None
     return parse_float(trimmed, None)
 
-
 def parse_int(value, fallback=0):
     try:
         return int(value)
     except (TypeError, ValueError):
         return fallback
-
 
 def get_shop_profile():
     profile = ShopProfile.query.first()
@@ -107,21 +98,13 @@ def get_shop_profile():
     db.session.commit()
     return profile
 
-
 def allowed_image(filename):
     if not filename or '.' not in filename:
         return False
     return filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
 
-
-def build_upload_url(filename):
-    if has_request_context():
-        return url_for('static', filename=f'uploads/{filename}')
-    return f'/static/uploads/{filename}'
-
-
+# --- NEW CLOUDINARY UPLOAD LOGIC ---
 def save_uploaded_images(file_storage_list):
-    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     saved_urls = []
 
     for file in file_storage_list:
@@ -131,57 +114,25 @@ def save_uploaded_images(file_storage_list):
         if not allowed_image(filename):
             continue
 
-        safe_name = secure_filename(filename)
-        extension = safe_name.rsplit('.', 1)[1].lower()
-        unique_name = f"{uuid.uuid4().hex}.{extension}"
-        destination = os.path.join(app.config['UPLOAD_FOLDER'], unique_name)
-        stream = getattr(file, 'stream', file)
-
         try:
-            if Image is None or ImageOps is None:
-                stream.seek(0)
-                if hasattr(file, 'save'):
-                    file.save(destination)
-                else:
-                    with open(destination, 'wb') as destination_file:
-                        destination_file.write(stream.read())
-                saved_urls.append(build_upload_url(unique_name))
-                continue
-
-            stream.seek(0)
-            image = Image.open(stream)
-            image = ImageOps.exif_transpose(image)
-            image.thumbnail((MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION), Image.Resampling.LANCZOS)
-
-            if extension in {'jpg', 'jpeg'}:
-                image = image.convert('RGB')
-                image.save(destination, format='JPEG', quality=82, optimize=True)
-            elif extension == 'webp':
-                image = image.convert('RGB')
-                image.save(destination, format='WEBP', quality=82, method=6)
-            elif extension == 'png':
-                image.save(destination, format='PNG', optimize=True)
-            else:
-                # GIF and other allowed formats are saved directly to preserve animation.
-                stream.seek(0)
-                if hasattr(file, 'save'):
-                    file.save(destination)
-                else:
-                    with open(destination, 'wb') as destination_file:
-                        destination_file.write(stream.read())
-        except (UnidentifiedImageError, OSError):
+            # Cloudinary automatically handles the file stream
+            upload_result = cloudinary.uploader.upload(
+                file,
+                width=MAX_IMAGE_DIMENSION, 
+                height=MAX_IMAGE_DIMENSION, 
+                crop="limit" 
+            )
+            saved_urls.append(upload_result['secure_url'])
+        except Exception as e:
+            print(f"Cloudinary upload failed: {e}")
             continue
 
-        saved_urls.append(build_upload_url(unique_name))
-
     return saved_urls
-
 
 def parse_image_url_text(image_url_text):
     if not image_url_text:
         return []
     return [url.strip() for url in image_url_text.split(',') if url.strip()]
-
 
 def build_image_url_field(image_url_text, uploaded_files, existing_urls=None, fallback=''):
     text_urls = parse_image_url_text(image_url_text)
@@ -192,20 +143,19 @@ def build_image_url_field(image_url_text, uploaded_files, existing_urls=None, fa
         return ', '.join(merged)
     return fallback
 
-
+# --- NEW CLOUDINARY DELETE LOGIC ---
 def delete_local_uploads(urls):
     for url in urls:
-        if not url.startswith('/static/uploads/'):
-            continue
-        filename = url.split('/static/uploads/', 1)[-1]
-        local_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        if os.path.isfile(local_path):
-            os.remove(local_path)
-
+        if 'res.cloudinary.com' in url:
+            try:
+                # Extract the public_id to tell Cloudinary which image to delete
+                public_id = url.split('/')[-1].split('.')[0]
+                cloudinary.uploader.destroy(public_id)
+            except Exception as e:
+                print(f"Failed to delete from Cloudinary: {e}")
 
 def ensure_schema():
     db.create_all()
-    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     inspector = inspect(db.engine)
     item_columns = {column['name'] for column in inspector.get_columns('item')}
 
@@ -280,8 +230,6 @@ def admin():
     all_items = Item.query.order_by(Item.created_at.desc(), Item.id.desc()).all()
     return render_template('admin.html', profile=profile, items=all_items)
 
-
-
 @app.route('/logout')
 def logout():
     session.pop('logged_in', None)
@@ -338,7 +286,6 @@ def item_detail(item_id):
         images = [url.strip() for url in item.image_urls.split(',')]
     return render_template('item.html', item=item, images=images)
 
-
 @app.route('/admin/edit/<int:item_id>', methods=['GET', 'POST'])
 def edit_item(item_id):
     if not session.get('logged_in'):
@@ -364,7 +311,7 @@ def edit_item(item_id):
         item.popularity_score = parse_int(request.form.get('popularity_score'), item.popularity_score)
 
         removed_urls = [url for url in original_urls if url not in kept_existing_urls]
-        delete_local_uploads(removed_urls)
+        delete_local_uploads(removed_urls) # Now deletes from Cloudinary!
 
         db.session.commit()
         return redirect(url_for('admin'))
@@ -373,12 +320,16 @@ def edit_item(item_id):
 
 @app.route('/delete/<int:item_id>', methods=['POST'])
 def delete_item(item_id):
-    # Security check: boot them out if they aren't logged in
     if not session.get('logged_in'):
         return redirect('/login')
     
-    # Find the item and delete it
     item = Item.query.get_or_404(item_id)
+    
+    # Optional: Delete the images from Cloudinary before deleting the item from the DB
+    if item.image_urls:
+        urls_to_delete = parse_image_url_text(item.image_urls)
+        delete_local_uploads(urls_to_delete)
+        
     db.session.delete(item)
     db.session.commit()
     
