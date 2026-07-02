@@ -3,3 +3,4 @@ Flask-SQLAlchemy
 SQLAlchemy
 Pillow
 gunicorn
+psycopg2-binary
